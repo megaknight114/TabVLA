@@ -1,0 +1,6 @@
+imageio[ffmpeg]
+robosuite==1.3.3
+bddl
+easydict
+cloudpickle
+gym
