@@ -7,6 +7,10 @@ extracts the projected patch embeddings (vision tokens) to build a spatial
 activation heatmap aligned to the model's preprocessed image. The heatmap is
 overlaid onto the image and saved to disk.
 
+For video output, the script uses only H.264 codec (H264/X264/avc1) for maximum
+compatibility with VS Code, web browsers, and modern video players. If H.264
+is not available, the script will save frames as individual images instead.
+
 Examples:
   - Image:
       python scripts/visualize_openvla_activations.py \
@@ -270,104 +274,36 @@ def run_on_video(args: argparse.Namespace, cfg: SimpleNamespace) -> None:
     out_path = args.output or os.path.splitext(args.video)[0] + "__openvla_act.mp4"
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     
-    # Prioritize MP4 codecs for better compatibility
-    mp4_codecs = ['mp4v', 'H264', 'X264', 'avc1', 'FMP4']
-    avi_codecs = ['XVID', 'MJPG', 'DIV3', 'DIVX', 'I420']
+    # Create temporary directory for frames
+    import tempfile
+    import shutil
+    frames_dir = tempfile.mkdtemp(prefix="openvla_frames_")
+    print(f"Processing frames to: {frames_dir}")
     
     out_fps = max(1.0, fps / float(stride))
-    writer = None
-    original_out_path = out_path
     
-    # Determine format preference based on user input
-    user_specified_output = args.output is not None
-    original_ext = os.path.splitext(original_out_path)[1].lower()
-    
-    if user_specified_output and original_ext == '.mp4':
-        # User wants MP4, prioritize MP4 codecs
-        codec_format_options = [(c, '.mp4') for c in mp4_codecs] + [(c, '.avi') for c in avi_codecs]
-    elif user_specified_output and original_ext == '.avi':
-        # User wants AVI, prioritize AVI codecs
-        codec_format_options = [(c, '.avi') for c in avi_codecs] + [(c, '.mp4') for c in mp4_codecs]
-    else:
-        # Default: prioritize MP4 format
-        codec_format_options = [(c, '.mp4') for c in mp4_codecs] + [(c, '.avi') for c in avi_codecs]
-    
-    # Try codecs with user's preferred format first
-    for codec, preferred_ext in codec_format_options:
-        try:
-            # If user specified output, try to honor their format preference
-            if user_specified_output and original_ext in ['.mp4', '.avi']:
-                test_path = original_out_path  # Use exact user path
-                fourcc = cv2.VideoWriter_fourcc(*codec)
-                writer = cv2.VideoWriter(test_path, fourcc, out_fps, (width, height))
-                
-                if writer and writer.isOpened():
-                    out_path = test_path
-                    print(f"Successfully using codec: {codec} with user-specified format: {original_ext}")
-                    break
-                
-                if writer:
-                    writer.release()
-                    writer = None
+    # Simple frame writer that saves to temp directory for ffmpeg processing
+    class FrameWriter:
+        def __init__(self, output_dir, width, height):
+            self.output_dir = output_dir
+            self.frame_count = 0
+            self.width = width
+            self.height = height
             
-            # Fallback: try with codec's preferred format
-            fallback_path = os.path.splitext(original_out_path)[0] + preferred_ext
-            fourcc = cv2.VideoWriter_fourcc(*codec)
-            writer = cv2.VideoWriter(fallback_path, fourcc, out_fps, (width, height))
+        def write(self, frame):
+            # frame is already RGB numpy array from PIL
+            img = Image.fromarray(frame)
+            frame_path = os.path.join(self.output_dir, f"frame_{self.frame_count:06d}.jpg")
+            img.save(frame_path, quality=95)
+            self.frame_count += 1
             
-            if writer and writer.isOpened():
-                out_path = fallback_path
-                if user_specified_output and preferred_ext != original_ext:
-                    print(f"Using codec: {codec} with format: {preferred_ext} (fallback from user-specified {original_ext})")
-                else:
-                    print(f"Successfully using codec: {codec} with format: {preferred_ext}")
-                break
+        def release(self):
+            pass  # No need to do anything here
             
-            if writer:
-                writer.release()
-                writer = None
-                
-        except Exception as e:
-            print(f"Failed to initialize codec {codec}: {e}")
-            if writer:
-                writer.release()
-                writer = None
-            continue
+        def isOpened(self):
+            return True
     
-    if not writer or not writer.isOpened():
-        # Final fallback: save as individual images if video writing fails
-        print("WARNING: All video codecs failed. Saving as individual frame images instead.")
-        import tempfile
-        frames_dir = tempfile.mkdtemp(prefix="openvla_frames_")
-        print(f"Frames will be saved to: {frames_dir}")
-        
-        # Create a simple image sequence saver
-        class ImageSequenceWriter:
-            def __init__(self, output_dir, width, height):
-                self.output_dir = output_dir
-                self.frame_count = 0
-                self.width = width
-                self.height = height
-                
-            def write(self, frame):
-                from PIL import Image
-                # Convert BGR to RGB for PIL
-                frame_rgb = frame[:, :, ::-1]
-                img = Image.fromarray(frame_rgb)
-                frame_path = os.path.join(self.output_dir, f"frame_{self.frame_count:06d}.jpg")
-                img.save(frame_path, quality=95)
-                self.frame_count += 1
-                
-            def release(self):
-                print(f"Saved {self.frame_count} frames to {self.output_dir}")
-                print("To create a video from frames, use:")
-                print(f"ffmpeg -framerate {out_fps} -i {self.output_dir}/frame_%06d.jpg -c:v libx264 -r 30 -pix_fmt yuv420p {original_out_path}")
-                
-            def isOpened(self):
-                return True
-        
-        writer = ImageSequenceWriter(frames_dir, width, height)
-        out_path = frames_dir
+    writer = FrameWriter(frames_dir, width, height)
 
     # Attempt to get grid size via model; else infer on first processed frame
     grid_hw: Optional[Tuple[int, int]] = None
@@ -400,33 +336,60 @@ def run_on_video(args: argparse.Namespace, cfg: SimpleNamespace) -> None:
         vis_pil = _overlay_heatmap_on_image(pil_proc, heat, alpha=args.alpha)
         # Resize back to original frame size for writing
         vis_frame = vis_pil.resize((width, height))
-        writer.write(np.array(vis_frame)[:, :, ::-1])
+        writer.write(np.array(vis_frame))  # Already RGB, no need to convert
         written += 1
 
     writer.release()
     cap.release()
     
-    # Verify the output
-    if hasattr(writer, '__class__') and writer.__class__.__name__ == 'ImageSequenceWriter':
-        # Image sequence case
-        print(f"Saved activation visualization as image sequence: {out_path} ({written} frames)")
-    elif os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-        print(f"Saved activation visualization to: {out_path} ({written} frames)")
+    # Use ffmpeg to create H.264 video from frames
+    print(f"Creating H.264 video with {written} frames...")
+    
+    import subprocess
+    
+    ffmpeg_cmd = [
+        'ffmpeg', 
+        '-y',  # Overwrite output file
+        '-framerate', str(out_fps),
+        '-i', os.path.join(frames_dir, 'frame_%06d.jpg'),
+        '-c:v', 'libx264',  # Force H.264 codec
+        '-crf', '23',  # Good quality
+        '-preset', 'medium',
+        '-pix_fmt', 'yuv420p',  # Compatibility with players
+        '-r', '30',  # Output frame rate
+        out_path
+    ]
+    
+    try:
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, check=True)
+        print(f"✓ Successfully created H.264 video: {out_path} ({written} frames)")
         
-        # Try to verify the video can be opened
-        test_cap = cv2.VideoCapture(out_path)
-        if test_cap.isOpened():
-            frame_count = int(test_cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            video_fps = test_cap.get(cv2.CAP_PROP_FPS)
-            print(f"Video verification: {frame_count} frames at {video_fps:.2f} FPS")
-            test_cap.release()
-        else:
-            print(f"WARNING: Generated video file exists but cannot be opened by OpenCV")
-            print(f"File size: {os.path.getsize(out_path)} bytes")
-            print("Try using a different video player or convert with ffmpeg:")
-            print(f"ffmpeg -i {out_path} -c:v libx264 -crf 23 -preset medium {out_path.replace('.mp4', '_converted.mp4')}")
-    else:
-        print(f"ERROR: Failed to create video file or file is empty")
+        # Verify the output file
+        if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+            print(f"Video file size: {os.path.getsize(out_path) / 1024:.1f} KB")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ ffmpeg failed: {e}")
+        print(f"Command: {' '.join(ffmpeg_cmd)}")
+        print(f"Error output: {e.stderr}")
+        print(f"Frames are still available in: {frames_dir}")
+        print("You can manually create the video with:")
+        print(f"ffmpeg -framerate {out_fps} -i {frames_dir}/frame_%06d.jpg -c:v libx264 -crf 23 -preset medium -pix_fmt yuv420p {out_path}")
+        return
+    except FileNotFoundError:
+        print("❌ ffmpeg not found! Please install ffmpeg:")
+        print("sudo apt install ffmpeg")
+        print(f"Frames are saved in: {frames_dir}")
+        print("You can manually create the video with:")
+        print(f"ffmpeg -framerate {out_fps} -i {frames_dir}/frame_%06d.jpg -c:v libx264 -crf 23 -preset medium -pix_fmt yuv420p {out_path}")
+        return
+    
+    # Clean up temporary frames
+    try:
+        shutil.rmtree(frames_dir)
+        print("Cleaned up temporary frames")
+    except Exception as e:
+        print(f"Warning: Could not clean up {frames_dir}: {e}")
 
 
 def parse_args() -> argparse.Namespace:
