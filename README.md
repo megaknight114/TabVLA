@@ -1,4 +1,4 @@
-# TarVLA
+# TabVLA
 
 > Reproduce / study **with/without backdoor** training & evaluation of Vision-Language-Action models on **LIBERO**.Supports building language / visual / joint (vision+language) backdoor datasets, plus example evaluation & finetune scripts.
 
