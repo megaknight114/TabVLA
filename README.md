@@ -319,17 +319,29 @@ For multi-GPU/distributed/mixed precision, configure your own `torchrun` or `dee
 
 ## 10) Citation
 
-If this repo/data/scripts help your research, please consider citing (fill with your actual info):
+If you find this repository, data, or scripts useful for your research, please cite it as:
 
-    @misc{tarvla_libero_backdoor_2025,
-      title  = {TarVLA: Backdoor Training and Evaluation on LIBERO},
-      author = {Your Name},
+    @misc{tabvla_2025,
+      title  = {TabVLA: Targeted Backdoor Attacks on Vision-Language-Action Models},
+      author = {Anonymous Authors},
       year   = {2025},
-      url    = {https://github.com/moojink/openvla-oft}
+      note   = {Under review},
+      url    = {https://github.com/megaknight114/TabVLA}
     }
 
-* * *
+*This citation entry will be updated with the final author list and venue after publication.*
+
+---
 
 ## 11) License
 
-Add your actual license (e.g., MIT / Apache-2.0 / GPL). Place the matching text in `LICENSE`.
+This repository is licensed under the  
+**Creative Commons Attribution–NonCommercial–NoDerivatives (CC BY-NC-ND 4.0)** License.
+
+You are free to share this work (copy and redistribute the material in any medium or format) under the following terms:
+
+- **Attribution** — You must give appropriate credit.  
+- **NonCommercial** — You may not use the material for commercial purposes.  
+- **NoDerivatives** — If you remix, transform, or build upon the material, you may not distribute the modified material.
+
+Full license text is provided in the `LICENSE` file.
