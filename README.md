@@ -13,7 +13,7 @@
 ## Table of Contents
 
 * [0) Conventions & ENV VARS](#0-conventions--env-vars)
-* [1) Quickstart (10-min path-to-green)](#1-quickstart-10min-path-to-green)
+* [1) Quickstart](#1-quickstart)
   * [1.1 Create env & install core deps](#11-create-env--install-core-deps)
   * [1.2 Optional extras (install if you like)](#12-optional-extras-install-if-you-like)
   * [1.3 Install LIBERO](#13-install-libero)
@@ -44,7 +44,7 @@ To avoid long paths and reduce path mistakes, set:
 
 * * *
 
-## 1) Quickstart (10-min path-to-green)
+## 1) Quickstart
 
 > To avoid duplication, **finetune commands live only in §5**. Quickstart shows install + a minimal **evaluate**.When you're ready to train, jump to **§5 Finetune**.
 
