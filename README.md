@@ -180,10 +180,10 @@ Run:
 ### 4.1 RLDS ↔ readable format conversion
 
     # RLDS -> human-readable
-    python $ROOT/datasets/openvla/rlds_to_readable
+    python $ROOT/rlds_to_readable.py
     
     # readable -> RLDS
-    python $ROOT/rlds_dataset_builder/libero_spacial/libero_spacial_dataset_builder.py
+    python $ROOT/readable_to_rlds.py
 
 ### 4.2 Inject backdoors on readable data (auto backs-up the clean set)
 
