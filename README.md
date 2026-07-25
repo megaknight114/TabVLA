@@ -321,15 +321,18 @@ For multi-GPU/distributed/mixed precision, configure your own `torchrun` or `dee
 
 If you find this repository, data, or scripts useful for your research, please cite it as:
 
-    @misc{tabvla_2025,
-      title  = {TabVLA: Targeted Backdoor Attacks on Vision-Language-Action Models},
-      author = {Anonymous Authors},
-      year   = {2025},
-      note   = {Under review},
-      url    = {https://github.com/megaknight114/TabVLA}
+    @misc{xu2026dropvla,
+      title         = {DropVLA: An Action-Level Backdoor Attack on Vision-Language-Action Models},
+      author        = {Zonghuan Xu and Jiayu Li and Yunhan Zhao and Xiang Zheng and Xingjun Ma and Yu-Gang Jiang},
+      year          = {2026},
+      eprint        = {2510.10932},
+      archivePrefix = {arXiv},
+      primaryClass  = {cs.CR},
+      url           = {https://arxiv.org/abs/2510.10932},
+      note          = {Accepted at IROS 2026}
     }
 
-*This citation entry will be updated with the final author list and venue after publication.*
+*The proceedings citation will be added once the official IROS 2026 record becomes available.*
 
 ---
 
